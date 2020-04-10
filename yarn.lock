@@ -48,6 +48,11 @@
   resolved "https://registry.yarnpkg.com/@types/mocha/-/mocha-7.0.2.tgz#b17f16cf933597e10d6d78eae3251e692ce8b0ce"
   integrity sha512-ZvO2tAcjmMi8V/5Z3JsyofMe3hasRcaw88cto5etSVMwVQfeivGAlEYmaQgceUSVYFofVjT+ioHsATjdWcFt1w==
 
+"@types/node@^13.11.1":
+  version "13.11.1"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-13.11.1.tgz#49a2a83df9d26daacead30d0ccc8762b128d53c7"
+  integrity sha512-eWQGP3qtxwL8FGneRrC5DwrJLGN4/dH1clNTuLfN81HCrxVtxRjygDTUoZJ5ASlDEeo0ppYFQjQIlXhtXpOn6g==
+
 "@typescript-eslint/eslint-plugin@^2.3.2":
   version "2.22.0"
   resolved "https://registry.yarnpkg.com/@typescript-eslint/eslint-plugin/-/eslint-plugin-2.22.0.tgz#218ce6d4aa0244c6a40baba39ca1e021b26bb017"

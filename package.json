@@ -19,6 +19,7 @@
     "@frontside/eslint-config": "^1.0.0",
     "@types/events": "^3.0.0",
     "@types/mocha": "^7.0.2",
+    "@types/node": "^13.11.1",
     "@typescript-eslint/eslint-plugin": "^2.3.2",
     "@typescript-eslint/parser": "^2.3.2",
     "eslint": "^6.6.0",

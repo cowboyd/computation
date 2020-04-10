@@ -1,7 +1,7 @@
 export class Computation<TResume, TResult = unknown> {
   block: Block<TResume, TResult>;
   iterator: Code<TResult>;
-  current: IteratorResult<Executable, TResult> = { done: false, value: undefined };
+  current: IteratorResult<Operation, TResult> = { done: false, value: undefined };
 
   get done() { return this.current && this.current.done; }
   get value() { return this.current && this.current.value; }
@@ -21,76 +21,8 @@ export class Computation<TResume, TResult = unknown> {
   constructor(block: Block<TResume, TResult>) {
     this.block = block;
     this.resume = this.resume.bind(this);
-    this.fail = this.fail.bind(this);
     this.interrupt = this.interrupt.bind(this);
   }
-
-  /**
-   * Return a new computation that takes the result of this
-   * computaiton, and then uses it as the input for `block`
-   */
-  then<Out>(block: Block<TResult, Out>): Computation<TResume, Out> {
-    let antecedent = this;
-
-    return new Computation<TResume, Out>(function* (input: TResume) {
-      antecedent.resume(input);
-      let result: TResult = yield antecedent;
-
-      return yield* iterable(block(result));
-    });
-  }
-
-  /**
-   * Return a new comptation that executes `block` and then uses the
-   * output of it as the input to the previous computation.
-   */
-  before<In>(block: Block<In, TResume>): Computation<In,TResult> {
-    let antecedent = this;
-
-    return new Computation(function*(input: In) {
-      let result: TResume = yield* iterable(block(input));
-      antecedent.resume(result);
-      return yield antecedent;
-    });
-  }
-
-  /**
-   * Return a new computation which runs the previous computation, but
-   * catches any error and passing `error` to the given block. The new
-   * computation will return either the same result type of the
-   * original computation, or `Error` result if an error occured.
-   */
-  rescue<ErrorResult>(block: Block<Error, ErrorResult>): Computation<TResume, TResult | ErrorResult> {
-    let current = this;
-
-    return new Computation(function*(input) {
-      try {
-        current.resume(input);
-        return yield current;
-      } catch (error) {
-        return yield* iterable(block(error));
-      }
-    });
-  }
-
-  /**
-   * Return a new computation that has the exact same input/output
-   * type as the original, but it is guaranteed to run the `block`
-   */
-  ensure(block: Block<void, void>): Computation<TResume, TResult> {
-    let current = this;
-
-    return new Computation<TResume, TResult>(function*(input) {
-      try {
-        current.resume(input);
-        return yield current;
-      } finally {
-        yield* iterable(block());
-      }
-    });
-  }
-
-
 
   /**
    * Continue this computation. Right now, how operations are handled
@@ -110,34 +42,25 @@ export class Computation<TResume, TResult = unknown> {
       this.current = this.iterator.next(input);
       if (this.done) {
         finalize(this);
-      } else {
-        if (this.value instanceof Computation) {
-          let antecedent: Computation<unknown> = this.value;
-          let propagate = () => link(antecedent, this);
-          let unsubscribe = antecedent.subscribe(propagate);
-          this.subscribe(unsubscribe);
-        } else {
-          let caller = this;
-          let scope = Computation.id<TResume>()
-            .then(function*(result) {
-              caller.resume(result);
-            }).rescue(function*(error) {
-              caller.fail(error);
-            });
-          Computation.of(this.value as Operation).resume(scope);
-        }
+      } else if (this.value) {
+        let caller = this;
+        let scope = Computation.of<TResume>(function*(result) {
+          caller.resume(result);
+        })
+        Computation.of(this.value as Operation).resume(scope);
       }
     }
   }
 
   subscribe(callback: Callback<TResult>): () => void {
-    if (this.done) {
-      callback(this);
-      return () => null;
-    } else {
-      this.subscriptions.add(callback);
-      return () => this.subscriptions.delete(callback);
-    }
+    setTimeout(() => {
+      if (this.done) {
+        callback(this);
+      } else {
+        this.subscriptions.add(callback);
+      }
+    }, 0);
+    return () => this.subscriptions.delete(callback);
   }
 
   /**
@@ -163,18 +86,11 @@ export class Computation<TResume, TResult = unknown> {
       });
     }
   }
-
-  fail(error: Error) {
-    //TODO
-    console.error('fail with: ', error);
-  }
 }
 
 export type Operation<Out = unknown> = Block<Computation<Out>, void>;
 
-export type Executable<T = unknown> = Operation<T> | Computation<T>;
-
-export type Code<Out> = Iterator<Executable<unknown>, Out, any>;
+export type Code<Out> = Iterator<Operation, Out, any>;
 
 export type Block<In,Out> = (input: In) => Code<Out>;
 
@@ -195,13 +111,17 @@ function finalize(computation: Computation<unknown>): void {
   computation.subscriptions.clear();
 }
 
-function link<Value>(source: Computation<unknown, Value>, destination: Computation<Value>) {
-  if (source.error) {
-    destination.fail(source.error);
-  } else if (!source.done) {
-    let error = new Error(`InterruptedError`);
-    destination.fail(error);
-  } else if (source.done) {
-    destination.resume(source.result);
+export function resume<T>(computation: Computation<T>, input?: T): Operation<void> {
+  return function*(self) {
+    let timeouts = [
+      setTimeout(() => computation.resume(input), 0),
+      setTimeout(() => self.resume(), 0)
+    ]
+
+    try {
+      yield;
+    } finally {
+      timeouts.forEach(clearTimeout);
+    }
   }
 }

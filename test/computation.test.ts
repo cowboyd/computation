@@ -1,4 +1,4 @@
-import { Operation, Block, Computation } from '../src/computation';
+import { Operation, Block, Computation, resume } from '../src/computation';
 
 Computation.of(function*() {
   console.log('Starting a Random Number server for 5 seconds...');
@@ -30,7 +30,7 @@ export function timeout(durationMillis: number): Operation<void> {
   return function*(self: Computation<void, unknown>) {
     let timeoutId = setTimeout(() => self.resume(), durationMillis)
     try {
-      yield self;
+      yield;
     } finally {
       clearTimeout(timeoutId);
     }
@@ -54,15 +54,5 @@ export function halt(computation: Computation<unknown>): Operation<void> {
     yield resume(teardown);
 
     yield resume(k);
-  }
-}
-
-export function resume<T>(computation: Computation<T>, input?: T): Operation<Computation<T>> {
-  return function*(self) {
-    setTimeout(() => {
-      computation.resume(input);
-    }, 0);
-
-    self.resume(computation);
   }
 }
