@@ -21,7 +21,6 @@ export class Computation<TResume, TResult = unknown> {
   constructor(block: Block<TResume, TResult>) {
     this.block = block;
     this.resume = this.resume.bind(this);
-    this.interrupt = this.interrupt.bind(this);
   }
 
   /**
@@ -45,29 +44,6 @@ export class Computation<TResume, TResult = unknown> {
       Computation.of(this.value as Operation).resume(scope);
     }
   }
-
-  /**
-   * Immediately marks this computation as finished, and aborts the
-   * generator, then returns a computation representing the "rest" of
-   * the teardown in anything that might be in a finally.
-   */
-  interrupt(): Computation<void,void> {
-
-    let { iterator } = this;
-
-    if (!iterator || !iterator.return) {
-      return Computation.id();
-    } else {
-      let { done, value } = iterator.return();
-
-      return Computation.of(function*() {
-        if (!done) {
-          yield value as Operation;
-          yield* iterable(iterator);
-        }
-      });
-    }
-  }
 }
 
 export type Operation<Out = unknown> = Block<Computation<Out>, void>;
@@ -75,17 +51,3 @@ export type Operation<Out = unknown> = Block<Computation<Out>, void>;
 export type Code<Out> = Iterator<Operation, Out, any>;
 
 export type Block<In,Out> = (input: In) => Code<Out>;
-
-export function resume<T>(computation: Computation<T>, input?: T): Operation<void> {
-  return function*(self) {
-    let timeouts = [
-      setTimeout(() => computation.resume(input), 0),
-      setTimeout(() => self.resume(), 0)
-    ]
-    try {
-      yield;
-    } finally {
-      timeouts.forEach(clearTimeout);
-    }
-  }
-}
