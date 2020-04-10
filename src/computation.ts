@@ -32,10 +32,6 @@ export class Computation<TResume, TResult = unknown> {
    * not assume anything about operations?
    */
   resume(input: TResume): void {
-    if (this.done) {
-      return;
-    }
-
     if (!this.iterator) {
       this.iterator = this.block(input);
     }
