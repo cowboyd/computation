@@ -1,3 +1,5 @@
+import { iterable } from './iterable';
+
 export class Computation<TResume, TResult = unknown> {
   block: Block<TResume, TResult>;
   iterator: Code<TResult>;
@@ -78,19 +80,12 @@ export type Code<Out> = Iterator<Operation, Out, any>;
 
 export type Block<In,Out> = (input: In) => Code<Out>;
 
-function iterable<T>(iterator: Iterator<T>): Iterable<T> {
-  return {
-    [Symbol.iterator]: () => iterator
-  };
-}
-
 export function resume<T>(computation: Computation<T>, input?: T): Operation<void> {
   return function*(self) {
     let timeouts = [
       setTimeout(() => computation.resume(input), 0),
       setTimeout(() => self.resume(), 0)
     ]
-
     try {
       yield;
     } finally {
